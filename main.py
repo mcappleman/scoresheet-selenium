@@ -16,14 +16,21 @@ def main(argv):
     Write the Projected best lineup
     """
 
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless')
+    options.add_argument('window-size=1200x600')
+    headless_driver = webdriver.Chrome(options=options)
     driver = webdriver.Chrome()
     env = load_env('environment.json')
 
     # Do Stuff Here
     try:
         download_csv(driver, env)
+        driver.close()
+        print('CSV Download Complete')
         players = pd.read_csv(env['DOWNLOAD_PATH'], encoding="ISO-8859-1")
-        final_df = scrape_pages(driver, env, players)
+        print('Begin Scraping')
+        final_df = scrape_pages(headless_driver, env, players)
         final_df.to_csv('players.csv', Index=False)
     except CSVDownloadError as e:
         print(e)
@@ -35,7 +42,7 @@ def main(argv):
         print(e)
         print('Another error happened somewhere')
 
-    driver.close()
+    headless_driver.close()
 
 
 def load_env(json_env_path):
@@ -87,6 +94,7 @@ def scrape_pages(driver, env, players):
     }
     for i, player in players.iterrows():
         if player['espn_id'] != '':
+            print('Scraping Player: ' + player['espn_name'] + ' index: ' + str(i))
             current_player = player_template.copy()
             current_player['name'] = player['espn_name']
             current_player['position'] = player['espn_pos']
@@ -97,7 +105,7 @@ def scrape_pages(driver, env, players):
             current_player['bref_id'] = player['bref_id']
 
             espn_url = env['ESPN_URL'] + current_player['espn_id']
-            br_url = env['BR_URL'] + current_player['bref_id']
+            # br_url = env['BR_URL'] + current_player['bref_id']
             driver.get(espn_url)
             tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
             table_rows = driver.find_elements_by_xpath(tr_xpath_start)
