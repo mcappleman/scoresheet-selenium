@@ -1,0 +1,14 @@
+{
+    "CSV_URL": "http://crunchtimebaseball.com/baseball_map.html",
+    "ESPN_URL": "http://www.espn.com/mlb/player/splits/_/id/",
+    "BR_URL": "",
+    "FAN_GRAPHS_URL": "",
+    "MY_PLAYERS": {
+        "Khris Davis": true,
+        "Ozzie Albies": true,
+        "Trea Turner": true,
+        "Harrison Bader": true,
+        "Miguel Andujar": true
+    },
+    "DOWNLOAD_PATH": "C:\\Users\\mcappleman\\Downloads"
+}
