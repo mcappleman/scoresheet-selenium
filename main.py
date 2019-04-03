@@ -9,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
 from classes.exceptions import CSVDownloadError
+from classes.player import Player
 
 
 def main(argv):
@@ -27,11 +28,26 @@ def main(argv):
     try:
         download_csv(driver, env)
         driver.close()
+
         print('CSV Download Complete')
         players = pd.read_csv(env['DOWNLOAD_PATH'], encoding="ISO-8859-1")
+
         print('Begin Scraping')
-        final_df = scrape_pages(headless_driver, env, players)
-        final_df.to_csv('players.csv', Index=False)
+        final_lists = scrape_pages(headless_driver, env, players)
+
+        batter_df = pd.DataFrame(final_lists['batter_list'])
+        pitcher_df = pd.DataFrame(final_lists['pitcher_list'])
+
+        column_order_start = ['name', 'position', 'mlb_team', 'throws', 'bats']
+        key_start_columns = ['last_seven', 'last_15', 'last_30', 'vs_left', 'vs_right']
+        batter_stats = ['ba', 'obp', 'slg', 'ops']
+        pitcher_stats = ['era', 'ip', 'so', 'bb']
+        column_batters = get_column_order(column_order_start, key_start_columns, batter_stats)
+        column_pitchers = get_column_order(column_order_start, key_start_columns, pitcher_stats)
+
+        batter_df.to_csv('batters.csv', index=False, columns=column_batters)
+        pitcher_df.to_csv('pitchers.csv', index=False, columns=column_pitchers)
+        print('\n\nCompleted Successfully!!!\n\n')
     except CSVDownloadError as e:
         print(e)
         print('Unable to Download the CSV')
@@ -73,63 +89,57 @@ def download_csv(driver, env):
 
 
 def scrape_pages(driver, env, players):
-    final_list = []
-    player_template = {
-        'name': '',
-        'position': '',
-        'mlb_team': '',
-        'throws': '',
-        'bats': '',
-        'espn_id': '',
-        'bref_id': '',
-        'fg_id': '',
-        'last_seven_ba': '',
-        'last_seven_obp': '',
-        'last_seven_slg': '',
-        'last_seven_ops': '',
-        'last_seven_era': '',
-        'last_seven_ip': '',
-        'last_seven_so': '',
-        'last_seven_bb': '',
-    }
+    pitcher_list = []
+    batter_list = []
     for i, player in players.iterrows():
-        if player['espn_id'] != '':
-            print('Scraping Player: ' + player['espn_name'] + ' index: ' + str(i))
-            current_player = player_template.copy()
-            current_player['name'] = player['espn_name']
-            current_player['position'] = player['espn_pos']
-            current_player['mlb_team'] = player['mlb_team']
-            current_player['throws'] = player['throws']
-            current_player['bats'] = player['bats']
-            current_player['espn_id'] = str(int(player['espn_id']))
-            current_player['bref_id'] = player['bref_id']
+        my_player = env['MY_PLAYERS'].get(player['espn_name'])
+        if my_player is None:
+            continue
 
-            espn_url = env['ESPN_URL'] + current_player['espn_id']
-            # br_url = env['BR_URL'] + current_player['bref_id']
-            driver.get(espn_url)
-            tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
-            table_rows = driver.find_elements_by_xpath(tr_xpath_start)
+        if player['espn_id'] == '':
+            continue
 
-            for row in table_rows:
-                row_title = row.find_element_by_xpath('.//td[1]').text
-                if row_title == 'Last 7 Days':
-                    if current_player['position'] != 'RP' and current_player['position'] != 'SP':
-                        current_player['last_seven_ba'] = row.find_element_by_xpath('.//td[14]').text
-                        current_player['last_seven_obp'] = row.find_element_by_xpath('.//td[15]').text
-                        current_player['last_seven_slg'] = row.find_element_by_xpath('.//td[16]').text
-                        current_player['last_seven_ops'] = row.find_element_by_xpath('.//td[17]').text
-                    else:
-                        current_player['last_seven_era'] = row.find_element_by_xpath('.//td[2]').text
-                        current_player['last_seven_ip'] = row.find_element_by_xpath('.//td[10]').text
-                        current_player['last_seven_so'] = row.find_element_by_xpath('.//td[16]').text
-                        current_player['last_seven_bb'] = row.find_element_by_xpath('.//td[15]').text
+        print('Scraping Player: ' + player['espn_name'] + ' index: ' + str(i))
 
-            final_list.append(current_player)
+        current_player = Player(player)
+        espn_url = env['ESPN_URL'] + current_player.espn_id
+
+        driver.get(espn_url)
+        tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
+        table_rows = driver.find_elements_by_xpath(tr_xpath_start)
+
+        for row in table_rows:
+            row_title = row.find_element_by_xpath('.//td[1]').text
+            if row_title == 'Last 7 Days':
+                current_player.get_stats(row, 'last_seven')
+            elif row_title == 'Last 15 Days':
+                current_player.get_stats(row, 'last_15')
+            elif row_title == 'Last 30 Days':
+                current_player.get_stats(row, 'last_30')
+            elif row_title == 'vs. Left':
+                current_player.get_stats(row, 'vs_left')
+            elif row_title == 'vs. Right':
+                current_player.get_stats(row, 'vs_right')
+
+        if current_player.batter:
+            batter_list.append(current_player.to_dict())
+        else:
+            pitcher_list.append(current_player.to_dict())
             
+    
+    return {
+        'batter_list': batter_list,
+        'pitcher_list': pitcher_list,
+    }
 
-    final_df = pd.DataFrame(final_list)
-    return final_df
 
+def get_column_order(start, keys, stats):
+    column_order = start.copy()
+    for key in keys:
+        for stat in stats:
+            column_order.append(key + '_' + stat)
+
+    return column_order
 
 if __name__ == "__main__":
     main(sys.argv[1:])
