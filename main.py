@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import math
 import sys
 import time
 import os
@@ -38,7 +39,7 @@ def main(argv):
         batter_df = pd.DataFrame(final_lists['batter_list'])
         pitcher_df = pd.DataFrame(final_lists['pitcher_list'])
 
-        column_order_start = ['name', 'position', 'mlb_team', 'throws', 'bats']
+        column_order_start = ['name', 'position', 'mlb_team', 'mine', 'throws', 'bats']
         key_start_columns = ['last_seven', 'last_15', 'last_30', 'vs_left', 'vs_right']
         batter_stats = ['ba', 'obp', 'slg', 'ops']
         pitcher_stats = ['era', 'ip', 'so', 'bb']
@@ -93,15 +94,16 @@ def scrape_pages(driver, env, players):
     batter_list = []
     for i, player in players.iterrows():
         my_player = env['MY_PLAYERS'].get(player['espn_name'])
-        if my_player is None:
+
+        if player['espn_id'] == '' or math.isnan(player['espn_id']):
             continue
 
-        if player['espn_id'] == '':
-            continue
-
-        print('Scraping Player: ' + player['espn_name'] + ' index: ' + str(i))
+        print('\n\nScraping Player: ' + player['espn_name'] + ' index: ' + str(i) + '\n\n')
 
         current_player = Player(player)
+        if my_player is not None:
+            current_player.mine = True
+
         espn_url = env['ESPN_URL'] + current_player.espn_id
 
         driver.get(espn_url)
