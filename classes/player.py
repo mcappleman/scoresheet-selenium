@@ -36,21 +36,42 @@ class Player():
         return player_dict
 
 
-    def get_stats(self, row, key_start):
+    def get_stats(self, row, key_start, site):
+        key = key_start + "_" + site
+        if site == 'ESPN':
+            self.get_espn_stats(row, key)
+        elif site == 'BR':
+            self.get_br_stats(row, key)
+
+
+    def get_br_stats(self, row, key_start):
+        try:
+            self.stats[key_start + '_ba'] = row.find_element_by_xpath('.//td[@data-stat="batting_avg"]').text
+            self.stats[key_start + '_obp'] = row.find_element_by_xpath('.//td[@data-stat="onbase_perc"]').text
+            self.stats[key_start + '_slg'] = row.find_element_by_xpath('.//td[@data-stat="slugging_perc"]').text
+            self.stats[key_start + '_ops'] = row.find_element_by_xpath('.//td[@data-stat="onbase_plus_slugging"]').text
+        except Exception as e:
+            self.stats[key_start + '_era'] = row.find_element_by_xpath('.//td[@data-stat="earned_run_avg"]').text
+            self.stats[key_start + '_ip'] = row.find_element_by_xpath('.//td[@data-stat="IP"]').text
+            self.stats[key_start + '_so'] = row.find_element_by_xpath('.//td[@data-stat="SO"]').text
+            self.stats[key_start + '_bb'] = row.find_element_by_xpath('.//td[@data-stat="BB"]').text
+
+
+    def get_espn_stats(self, row, key_start):
         if self.batter:
-            self.get_batter_stats(row, key_start)
+            self.get_espn_batter_stats(row, key_start)
         else:
-            self.get_pitcher_stats(row, key_start)
+            self.get_espn_pitcher_stats(row, key_start)
 
 
-    def get_batter_stats(self, row, key_start):
+    def get_espn_batter_stats(self, row, key_start):
         self.stats[key_start + '_ba'] = row.find_element_by_xpath('.//td[14]').text
         self.stats[key_start + '_obp'] = row.find_element_by_xpath('.//td[15]').text
         self.stats[key_start + '_slg'] = row.find_element_by_xpath('.//td[16]').text
         self.stats[key_start + '_ops'] = row.find_element_by_xpath('.//td[17]').text
 
 
-    def get_pitcher_stats(self, row, key_start):
+    def get_espn_pitcher_stats(self, row, key_start):
         self.stats[key_start + '_era'] = row.find_element_by_xpath('.//td[2]').text
         self.stats[key_start + '_ip'] = row.find_element_by_xpath('.//td[10]').text
         self.stats[key_start + '_so'] = row.find_element_by_xpath('.//td[16]').text

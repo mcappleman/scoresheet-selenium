@@ -41,10 +41,12 @@ def main(argv):
 
         column_order_start = ['name', 'position', 'mlb_team', 'mine', 'throws', 'bats']
         key_start_columns = ['last_seven', 'last_15', 'last_30', 'vs_left', 'vs_right']
+        # sites = ['ESPN', 'BR']
+        sites = ['BR']
         batter_stats = ['ba', 'obp', 'slg', 'ops']
-        pitcher_stats = ['era', 'ip', 'so', 'bb']
-        column_batters = get_column_order(column_order_start, key_start_columns, batter_stats)
-        column_pitchers = get_column_order(column_order_start, key_start_columns, pitcher_stats)
+        pitcher_stats = ['era', 'ip', 'so', 'bb', 'ba', 'obp', 'slg', 'ops']
+        column_batters = get_column_order(column_order_start, key_start_columns, sites, batter_stats)
+        column_pitchers = get_column_order(column_order_start, key_start_columns, sites, pitcher_stats)
 
         batter_df.to_csv('batters.csv', index=False, columns=column_batters)
         pitcher_df.to_csv('pitchers.csv', index=False, columns=column_pitchers)
@@ -106,24 +108,22 @@ def scrape_pages(driver, env, players):
         else:
             continue
 
-        espn_url = env['ESPN_URL'] + current_player.espn_id
+        # ESPN
+        #espn_url = env['ESPN_URL'] + current_player.espn_id
+        #tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
+        #current_player = get_stats(driver, espn_url, 'ESPN', tr_xpath_start, './/td[1]', current_player)
 
-        driver.get(espn_url)
-        tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
-        table_rows = driver.find_elements_by_xpath(tr_xpath_start)
-
-        for row in table_rows:
-            row_title = row.find_element_by_xpath('.//td[1]').text
-            if row_title == 'Last 7 Days':
-                current_player.get_stats(row, 'last_seven')
-            elif row_title == 'Last 15 Days':
-                current_player.get_stats(row, 'last_15')
-            elif row_title == 'Last 30 Days':
-                current_player.get_stats(row, 'last_30')
-            elif row_title == 'vs. Left':
-                current_player.get_stats(row, 'vs_left')
-            elif row_title == 'vs. Right':
-                current_player.get_stats(row, 'vs_right')
+        # Baseball Reference
+        br_url = env['BR_URL'] + current_player.bref_id
+        if not current_player.batter:
+            br_url = br_url + '&t=p'
+        tr_xpath_start = '//*[@id="total"]/tbody/tr'
+        current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
+        tr_xpath_start = '//*[@id="plato"]/tbody/tr'
+        current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
+        if not current_player.batter:
+            tr_xpath_start = '//*[@id="total_extra"]/tbody/tr'
+            current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
 
         if current_player.batter:
             batter_list.append(current_player.to_dict())
@@ -137,13 +137,35 @@ def scrape_pages(driver, env, players):
     }
 
 
-def get_column_order(start, keys, stats):
+def get_column_order(start, keys, sites, stats):
     column_order = start.copy()
     for key in keys:
-        for stat in stats:
-            column_order.append(key + '_' + stat)
+        for site in sites:
+            for stat in stats:
+                column_order.append(key + '_' + site + '_' + stat)
 
     return column_order
+
+
+def get_stats(driver, url, site, xpath_start, title_xpath, current_player):
+    
+    driver.get(url)
+    table_rows = driver.find_elements_by_xpath(xpath_start)
+
+    for row in table_rows:
+        row_title = row.find_element_by_xpath(title_xpath).text.lower()
+        if row_title == 'Last 7 Days'.lower():
+            current_player.get_stats(row, 'last_seven', site)
+        elif row_title == 'Last 15 Days'.lower() or row_title == 'Last 14 days'.lower():
+            current_player.get_stats(row, 'last_15', site)
+        elif row_title == 'Last 30 Days'.lower() or row_title == 'Last 28 days'.lower():
+            current_player.get_stats(row, 'last_30', site)
+        elif row_title == 'vs. Left'.lower() or row_title == 'vs LHP'.lower() or row_title == 'vs LHB'.lower():
+            current_player.get_stats(row, 'vs_left', site)
+        elif row_title == 'vs. Right'.lower() or row_title == 'vs RHP'.lower() or row_title == 'vs RHB'.lower():
+            current_player.get_stats(row, 'vs_right', site)
+
+    return current_player
 
 if __name__ == "__main__":
     main(sys.argv[1:])
