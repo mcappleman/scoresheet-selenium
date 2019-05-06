@@ -103,6 +103,8 @@ def scrape_pages(driver, env, players):
         current_player = Player(player)
         if my_player is not None:
             current_player.mine = True
+        else:
+            continue
 
         espn_url = env['ESPN_URL'] + current_player.espn_id
 
