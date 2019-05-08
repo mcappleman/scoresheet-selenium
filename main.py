@@ -25,6 +25,10 @@ def main(argv):
     driver = webdriver.Chrome()
     env = load_env('environment.json')
 
+    team_rosters = {}
+    with open('team_rosters.json') as json_file:
+        team_rosters = json.load(json_file)
+
     # Do Stuff Here
     try:
         download_csv(driver, env)
@@ -34,12 +38,12 @@ def main(argv):
         players = pd.read_csv(env['DOWNLOAD_PATH'], encoding="ISO-8859-1")
 
         print('Begin Scraping')
-        final_lists = scrape_pages(headless_driver, env, players)
+        final_lists = scrape_pages(headless_driver, env, team_rosters, players)
 
         batter_df = pd.DataFrame(final_lists['batter_list'])
         pitcher_df = pd.DataFrame(final_lists['pitcher_list'])
 
-        column_order_start = ['name', 'position', 'mine', 'throws', 'bats', 'mlb_team']
+        column_order_start = ['name', 'position', 'team_number', 'mlb_team', 'throws', 'bats']
         key_start_columns = ['last_seven', 'last_15', 'last_30', 'vs_left', 'vs_right']
         # sites = ['ESPN', 'BR']
         sites = ['BR']
@@ -91,22 +95,34 @@ def download_csv(driver, env):
         attempt += 1
 
 
-def scrape_pages(driver, env, players):
+def scrape_pages(driver, env, team_rosters, players):
     pitcher_list = []
     batter_list = []
     for i, player in players.iterrows():
         my_player = env['MY_PLAYERS'].get(player['espn_name'])
+        team_id = team_rosters.get(player['bref_name'])
 
-        if player['espn_id'] == '' or math.isnan(player['espn_id']):
+        if player['bref_id'] == '':
             continue
 
-        print('\n\nScraping Player: ' + player['espn_name'] + ' index: ' + str(i) + '\n\n')
+        if team_id is not None:
+            player['team_id'] = team_id
+        elif my_player is not None:
+            print('My Player: ' + player['bref_name'])
+            player['team_id'] = 8
+        else:
+            continue
+
+        if team_id != 8 and team_id != 12:
+            continue
+
+        print('Scraping Player: ' + player['bref_name'] + ' index: ' + str(i) + '\n\n')
 
         current_player = Player(player)
         if my_player is not None:
             current_player.mine = True
-        else:
-            continue
+        #else:
+        #    continue
 
         # ESPN
         #espn_url = env['ESPN_URL'] + current_player.espn_id

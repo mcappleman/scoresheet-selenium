@@ -12,6 +12,7 @@ class Player():
         self.mine = False
         self.batter = self.position != 'RP' and self.position != 'SP'
         self.stats = {}
+        self.team = player['team_id']
 
 
     def to_dict(self):
@@ -27,7 +28,8 @@ class Player():
             'espn_id': self.espn_id,
             'bref_id': self.bref_id,
             'fg_id': self.fg_id,
-            'mine': mine
+            'mine': mine,
+            'team_number': self.team
         }
 
         for key, value in self.stats.items():
