@@ -12,6 +12,54 @@ from selenium.webdriver.common.keys import Keys
 from classes.exceptions import CSVDownloadError
 from classes.player import Player
 
+TRANSLATIONS = {
+    "Daniel Robertson": "DanielRay Robertson(TB)",
+    "Jackie Bradley Jr.": "Jackie Bradley",
+    "Jose Ramirez": "Jose Ramirez(Cle)",
+    "Ronald Acuna Jr.": "Ronald Acuna",
+    "Vladimir Guerrero Jr.": "VladimirJr. Guerrero",
+    "Carlos Martinez": "Carlos(Matias) Martinez(StL)",
+    "Felipe Rivero": "Felipe Vazquez",
+    "Josh Bell": "Josh Bell(Pit)",
+    "Enrique Hernandez": "Kike Hernandez",
+    "Ryan Braun": "Ryan Braun(Mil)",
+    "Michael Fulmer": "Michael(out/2019) Fulmer",
+    "Amed Rosario": "Amed(German) Rosario",
+    "Will Smith": "Will Smith(SF)",
+    "Lourdes Gurriel Jr.": "Lourdes Gurriel",
+    "Danny Salazar": "Danny(hurt) Salazar",
+    "Will Harris": "Will Harris(Hou)",
+    "Matt Duffy": "Matt Duffy(TB)",
+    "Steven Souza Jr.": "Steven Souza",
+    "Fernando Tatis Jr.": "Fernando Tatis",
+    "Christin Stewart": "Christin Stewart(Det)",
+    "Daniel Ponce de Leon": "Daniel Poncedeleon",
+    "Seunghwan Oh": "SeungHwan Oh",
+    "Carl Edwards Jr.": "Carl Edwards",
+    "Didi Gregorius": "Didi(hurt) Gregorius",
+    "Michael A. Taylor": "MichaelA. Taylor",
+    "JaCoby Jones": "Jacoby Jones",
+    "Jung Ho Kang": "JungHo Kang",
+    "Cam Gallagher": "Cameron Gallagher",
+    "Phil Ervin": "Phillip Ervin",
+    "Sean Manaea": "Sean(hurt) Manaea",
+    "Yoenis Cespedes": "Yoenis(hurt) Cespedes",
+    "Dwight Smith Jr.": "Dwight Smith",
+    "Luis Garcia": "Luis Garcia(LAA)"
+}
+
+TRADES = {
+    "Teoscar Hernandez": 12
+}
+
+MISSING_BREF = {
+    "Oscar Mercado": {},
+    "Brent Honeywell": {},
+    "Dylan Cease": {},
+    "Mitch Keller": {}
+}
+
+TEAM_ROSTER_NAMES_FOUND = {}
 
 def main(argv):
     """
@@ -55,6 +103,8 @@ def main(argv):
         batter_df.to_csv('batters.csv', index=False, columns=column_batters)
         pitcher_df.to_csv('pitchers.csv', index=False, columns=column_pitchers)
         print('\n\nCompleted Successfully!!!\n\n')
+
+        check_all_players_found(team_rosters)
     except CSVDownloadError as e:
         print(e)
         print('Unable to Download the CSV')
@@ -107,39 +157,40 @@ def scrape_pages(driver, env, team_rosters, players):
 
         if team_id is not None:
             player['team_id'] = team_id
-        elif my_player is not None:
-            print('My Player: ' + player['bref_name'])
-            player['team_id'] = 8
+            TEAM_ROSTER_NAMES_FOUND[player['bref_name']] = True
+        elif TRANSLATIONS.get(player['bref_name']) is not None:
+            translation = TRANSLATIONS.get(player['bref_name'])
+            team_id = team_rosters.get(translation)
+            player['team_id'] = team_id
+            TEAM_ROSTER_NAMES_FOUND[translation] = True
         else:
             continue
 
-        if team_id != 8 and team_id != 12:
-            continue
+        if TRADES.get(player['bref_name']) is not None:
+            team_id = TRADES.get(player['bref_name'])
+
+        #if team_id != 8:
+        #    continue
 
         print('Scraping Player: ' + player['bref_name'] + ' index: ' + str(i) + '\n\n')
 
         current_player = Player(player)
         if my_player is not None:
             current_player.mine = True
-        #else:
-        #    continue
-
-        # ESPN
-        #espn_url = env['ESPN_URL'] + current_player.espn_id
-        #tr_xpath_start = '//*[@id="content"]/div[6]/div[1]/div/div[2]/div[2]/div/table/tbody/tr'
-        #current_player = get_stats(driver, espn_url, 'ESPN', tr_xpath_start, './/td[1]', current_player)
 
         # Baseball Reference
         br_url = env['BR_URL'] + current_player.bref_id
         if not current_player.batter:
             br_url = br_url + '&t=p'
+
+        driver.get(br_url)
         tr_xpath_start = '//*[@id="total"]/tbody/tr'
-        current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
+        current_player = get_stats(driver, 'BR', tr_xpath_start, './/th[1]', current_player)
         tr_xpath_start = '//*[@id="plato"]/tbody/tr'
-        current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
+        current_player = get_stats(driver, 'BR', tr_xpath_start, './/th[1]', current_player)
         if not current_player.batter:
             tr_xpath_start = '//*[@id="total_extra"]/tbody/tr'
-            current_player = get_stats(driver, br_url, 'BR', tr_xpath_start, './/th[1]', current_player)
+            current_player = get_stats(driver, 'BR', tr_xpath_start, './/th[1]', current_player)
 
         if current_player.batter:
             batter_list.append(current_player.to_dict())
@@ -163,9 +214,8 @@ def get_column_order(start, keys, sites, stats):
     return column_order
 
 
-def get_stats(driver, url, site, xpath_start, title_xpath, current_player):
+def get_stats(driver, site, xpath_start, title_xpath, current_player):
     
-    driver.get(url)
     table_rows = driver.find_elements_by_xpath(xpath_start)
 
     for row in table_rows:
@@ -182,6 +232,15 @@ def get_stats(driver, url, site, xpath_start, title_xpath, current_player):
             current_player.get_stats(row, 'vs_right', site)
 
     return current_player
+
+
+def check_all_players_found(team_rosters):
+    print('\n\nNot Found Players')
+    for key, value in team_rosters.items():
+        if TEAM_ROSTER_NAMES_FOUND.get(key) is None:
+            print(key + ", Team " + str(value))
+
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
