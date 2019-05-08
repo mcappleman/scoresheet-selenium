@@ -39,7 +39,7 @@ def main(argv):
         batter_df = pd.DataFrame(final_lists['batter_list'])
         pitcher_df = pd.DataFrame(final_lists['pitcher_list'])
 
-        column_order_start = ['name', 'position', 'mlb_team', 'mine', 'throws', 'bats']
+        column_order_start = ['name', 'position', 'mine', 'throws', 'bats', 'mlb_team']
         key_start_columns = ['last_seven', 'last_15', 'last_30', 'vs_left', 'vs_right']
         # sites = ['ESPN', 'BR']
         sites = ['BR']

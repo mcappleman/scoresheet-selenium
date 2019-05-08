@@ -50,7 +50,7 @@ class Player():
             self.stats[key_start + '_obp'] = row.find_element_by_xpath('.//td[@data-stat="onbase_perc"]').text
             self.stats[key_start + '_slg'] = row.find_element_by_xpath('.//td[@data-stat="slugging_perc"]').text
             self.stats[key_start + '_ops'] = row.find_element_by_xpath('.//td[@data-stat="onbase_plus_slugging"]').text
-        except Exception as e:
+        except Exception:
             self.stats[key_start + '_era'] = row.find_element_by_xpath('.//td[@data-stat="earned_run_avg"]').text
             self.stats[key_start + '_ip'] = row.find_element_by_xpath('.//td[@data-stat="IP"]').text
             self.stats[key_start + '_so'] = row.find_element_by_xpath('.//td[@data-stat="SO"]').text
